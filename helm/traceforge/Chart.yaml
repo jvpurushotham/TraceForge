@@ -1,0 +1,6 @@
+apiVersion: v2
+name: traceforge
+description: TraceForge incident service, alert rules and read-only RBAC
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

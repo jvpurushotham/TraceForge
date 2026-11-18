@@ -1,0 +1,21 @@
+image: {registry: "", tag: latest, pullPolicy: IfNotPresent}
+appNamespace: traceforge-app            # namespace where demo-app runs (pod state is read from here)
+prometheusUrl: http://kps-kube-prometheus-stack-prometheus.traceforge-observability.svc:9090
+tempoUrl: http://tempo.traceforge-observability.svc:3200   # grafana/tempo chart default HTTP port; check `kubectl get svc tempo`
+lokiUrl: http://loki.traceforge-observability.svc:3100
+otlpEndpoint: http://otel-collector-opentelemetry-collector.traceforge-observability.svc:4318
+evidenceDelayS: "20"
+webhookToken: ""                         # set to require "Authorization: Bearer <token>" from Alertmanager
+llm:
+  provider: none                         # none | anthropic | openai
+  model: ""
+  baseUrl: ""
+  apiKey: ""                             # prefer: --set-file or an existing secret; never commit a real key
+  existingSecret: ""                     # name of a Secret with key "api-key"
+prometheusRule:
+  enabled: true
+  releaseLabel: kps
+ingress:
+  enabled: true
+  className: nginx
+  host: incident.traceforge.local

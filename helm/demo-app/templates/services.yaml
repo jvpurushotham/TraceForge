@@ -1,0 +1,72 @@
+{{- range $name, $cfg := .Values.services }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels: {app: {{ $name }}}
+spec:
+  selector: {app: {{ $name }}}
+  ports: [{name: http, port: {{ $cfg.port }}, targetPort: http}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels: {app: {{ $name }}}
+spec:
+  {{- if not (and $.Values.hpa.enabled (eq $name "order-service")) }}
+  replicas: {{ $cfg.replicas }}
+  {{- end }}
+  selector: {matchLabels: {app: {{ $name }}}}
+  template:
+    metadata: {labels: {app: {{ $name }}}}
+    spec:
+      securityContext: {runAsNonRoot: true, runAsUser: 10001}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "demo.image" (dict "root" $ "name" $name) }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports: [{name: http, containerPort: {{ $cfg.port }}}]
+          envFrom:
+            - configMapRef: {name: app-config}
+          env:
+            - {name: PORT, value: {{ $cfg.port | quote }}}
+            {{- if eq $name "order-service" }}
+            - {name: PRODUCT_SERVICE_URL, value: "http://product-service:8001"}
+            - {name: INVENTORY_SERVICE_URL, value: "http://inventory-service:8002"}
+            - {name: PAYMENT_SERVICE_URL, value: "http://payment-service:8003"}
+            - name: DATABASE_URL
+              valueFrom: {secretKeyRef: {name: postgres-credentials, key: order-url}}
+            {{- end }}
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 3
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /ready, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {memory: {{ $cfg.memoryLimit }}}
+{{- if $.Values.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $name }}
+  labels: {release: {{ $.Values.serviceMonitor.releaseLabel }}}
+spec:
+  selector: {matchLabels: {app: {{ $name }}}}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 5s
+      relabelings:
+        - {targetLabel: service, replacement: {{ $name }}}
+        - {targetLabel: job, replacement: traceforge}
+{{- end }}
+{{- end }}

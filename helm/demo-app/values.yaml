@@ -1,0 +1,36 @@
+image:
+  registry: ""            # e.g. 123456789012.dkr.ecr.eu-west-1.amazonaws.com/ ; empty = local images (minikube image load)
+  tag: latest
+  pullPolicy: IfNotPresent
+faultInjection: true        # ONLY for local / isolated test clusters
+otlpEndpoint: http://otel-collector-opentelemetry-collector.traceforge-observability.svc:4318
+baseLatencyMs: "20"
+httpTimeoutS: "5"
+postgres:
+  user: traceforge
+  database: traceforge
+  password: ""              # empty -> a random password is generated into the Secret on first install
+  storage: 1Gi
+services:
+  product-service:   {port: 8001, replicas: 1, memoryLimit: 256Mi}
+  inventory-service: {port: 8002, replicas: 1, memoryLimit: 256Mi}
+  payment-service:   {port: 8003, replicas: 1, memoryLimit: 256Mi}
+  order-service:     {port: 8000, replicas: 1, memoryLimit: 256Mi}
+serviceMonitor:
+  enabled: true             # needs the Prometheus Operator CRDs (installed by kube-prometheus-stack)
+  releaseLabel: kps         # must match the kube-prometheus-stack release name
+hpa:
+  enabled: true             # needs metrics-server (minikube addons enable metrics-server)
+  minReplicas: 1
+  maxReplicas: 4
+  cpuTargetPercent: 50
+ingress:
+  enabled: true             # needs an ingress controller (minikube addons enable ingress)
+  className: nginx
+  host: traceforge.local
+maxLeakMb: "400"            # test cluster only: lets POST /admin/leak exceed the pod memory limit -> OOMKilled demo
+backup:
+  enabled: true
+  schedule: "*/30 * * * *"  # demo value; use e.g. "0 2 * * *" for nightly
+  retentionDays: 7
+  storage: 1Gi

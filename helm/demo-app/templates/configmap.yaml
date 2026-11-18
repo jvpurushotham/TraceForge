@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.otlpEndpoint | quote }}
+  ENABLE_FAULT_INJECTION: {{ .Values.faultInjection | quote }}
+  BASE_LATENCY_MS: {{ .Values.baseLatencyMs | quote }}
+  HTTP_TIMEOUT_S: {{ .Values.httpTimeoutS | quote }}
+  MAX_LEAK_MB: {{ .Values.maxLeakMb | quote }}
+  DEPLOY_ENV: kubernetes

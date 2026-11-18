@@ -1,0 +1,46 @@
+{{- if .Values.backup.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: postgres-backups}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: {{ .Values.backup.storage }}}}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata: {name: postgres-backup}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: pg-dump
+              image: postgres:16-alpine
+              env:
+                - {name: PGUSER, value: {{ .Values.postgres.user | quote }}}
+                - {name: PGHOST, value: postgres}
+                - name: PGPASSWORD
+                  valueFrom: {secretKeyRef: {name: postgres-credentials, key: password}}
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  for db in {{ .Values.postgres.database }} traceforge_incidents; do
+                    pg_dump -Fc -d "$db" -f "/backup/$db-$(date +%Y%m%d-%H%M%S).dump" || echo "skip $db"
+                  done
+                  find /backup -name '*.dump' -mtime +{{ .Values.backup.retentionDays }} -delete   # retention
+                  ls -l /backup
+              volumeMounts: [{name: backup, mountPath: /backup}]
+              resources: {requests: {cpu: 20m, memory: 32Mi}, limits: {memory: 128Mi}}
+          volumes:
+            - name: backup
+              persistentVolumeClaim: {claimName: postgres-backups}
+{{- end }}

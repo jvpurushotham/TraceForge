@@ -1,0 +1,5 @@
+# helm upgrade --install tempo grafana/tempo -n traceforge-observability -f this-file
+tempo:
+  retention: 24h
+persistence:
+  enabled: false     # demo: traces are lost on restart

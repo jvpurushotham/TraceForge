@@ -1,0 +1,37 @@
+# helm upgrade --install kps prometheus-community/kube-prometheus-stack -n traceforge-observability -f this-file
+# Best-effort values; chart versions evolve - check `helm show values` if a key is rejected.
+grafana:
+  adminPassword: admin            # local/demo only - change for anything shared
+  sidecar:
+    dashboards: {enabled: true, label: grafana_dashboard}
+  additionalDataSources:
+    - {name: Tempo, uid: tempo, type: tempo, access: proxy, url: "http://tempo:3200",
+       jsonData: {tracesToLogsV2: {datasourceUid: loki, spanStartTimeShift: "-5m", spanEndTimeShift: "5m", customQuery: true,
+                                    query: '{service_name=~".+"} |= "$${__trace.traceId}"'},
+                  serviceMap: {datasourceUid: prometheus}}}
+    - {name: Loki, uid: loki, type: loki, access: proxy, url: "http://loki:3200",
+       jsonData: {derivedFields: [{name: trace_id, matcherType: regex, matcherRegex: '"trace_id":\s*"(\w+)"',
+                                   url: "$${__value.raw}", datasourceUid: tempo, urlDisplayLabel: Open trace}]}}
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    retention: 24h
+alertmanager:
+  config:
+    route:
+      receiver: "null"
+      group_by: ["cluster"]
+      group_wait: 10s
+      group_interval: 15s
+      repeat_interval: 10m
+      routes:
+        # only TraceForge alerts go to the incident service (not the ~100 built-in Kubernetes alerts)
+        - receiver: traceforge-incident-service
+          matchers: ['alertname=~"HighErrorRate|HighLatencyP95|ServiceDown|ServiceRestarting|HighMemoryUsage|TelemetryPipelineDown"']
+    receivers:
+      - name: "null"
+      - name: traceforge-incident-service
+        webhook_configs:
+          - url: http://incident-service.traceforge-app.svc:8010/api/v1/webhooks/alertmanager
+            send_resolved: true

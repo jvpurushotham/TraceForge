@@ -1,0 +1,69 @@
+{{- $pw := .Values.postgres.password }}
+{{- if not $pw }}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace "postgres-credentials" }}
+{{- if $existing }}{{- $pw = index $existing.data "password" | b64dec }}{{- else }}{{- $pw = randAlphaNum 24 }}{{- end }}
+{{- end }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-credentials
+type: Opaque
+stringData:
+  password: {{ $pw | quote }}
+  order-url: postgresql+psycopg2://{{ .Values.postgres.user }}:{{ $pw }}@postgres:5432/{{ .Values.postgres.database }}
+  incident-url: postgresql+psycopg2://{{ .Values.postgres.user }}:{{ $pw }}@postgres.{{ .Release.Namespace }}.svc:5432/traceforge_incidents
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+data:
+  init.sql: |
+    CREATE DATABASE traceforge_incidents;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector: {app: postgres}
+  ports: [{port: 5432, targetPort: 5432}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: {matchLabels: {app: postgres}}
+  template:
+    metadata: {labels: {app: postgres}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{containerPort: 5432}]
+          env:
+            - {name: POSTGRES_USER, value: {{ .Values.postgres.user | quote }}}
+            - {name: POSTGRES_DB, value: {{ .Values.postgres.database | quote }}}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: postgres-credentials, key: password}}
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+          readinessProbe:
+            exec: {command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}]}
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+            - {name: init, mountPath: /docker-entrypoint-initdb.d}
+      volumes:
+        - name: init
+          configMap: {name: postgres-init}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: {{ .Values.postgres.storage }}}}

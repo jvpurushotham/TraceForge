@@ -1,0 +1,6 @@
+apiVersion: v2
+name: demo-app
+description: TraceForge demo e-commerce microservices (product, inventory, payment, order) + PostgreSQL
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

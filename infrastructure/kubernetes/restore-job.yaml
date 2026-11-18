@@ -1,0 +1,26 @@
+# Restore a dump produced by the postgres-backup CronJob.
+#   1. list backups:  kubectl -n traceforge-app run lsb --rm -it --restart=Never --image=busybox \
+#        --overrides='{"spec":{"containers":[{"name":"lsb","image":"busybox","command":["ls","-l","/backup"],"volumeMounts":[{"name":"b","mountPath":"/backup"}]}],"volumes":[{"name":"b","persistentVolumeClaim":{"claimName":"postgres-backups"}}]}}'
+#   2. restore:       sed 's/__FILE__/traceforge-20261114-120000.dump/; s/__DB__/traceforge/' restore-job.yaml | kubectl -n traceforge-app apply -f -
+#   3. watch:         kubectl -n traceforge-app logs job/postgres-restore
+apiVersion: batch/v1
+kind: Job
+metadata: {name: postgres-restore}
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: pg-restore
+          image: postgres:16-alpine
+          env:
+            - {name: PGUSER, value: traceforge}
+            - {name: PGHOST, value: postgres}
+            - name: PGPASSWORD
+              valueFrom: {secretKeyRef: {name: postgres-credentials, key: password}}
+          command: [sh, -c, "pg_restore --clean --if-exists -d __DB__ /backup/__FILE__ && echo RESTORE-OK"]
+          volumeMounts: [{name: backup, mountPath: /backup}]
+      volumes:
+        - name: backup
+          persistentVolumeClaim: {claimName: postgres-backups}

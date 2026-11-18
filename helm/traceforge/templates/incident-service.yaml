@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Secret
+metadata: {name: incident-service-secrets}
+type: Opaque
+stringData:
+  webhook-token: {{ .Values.webhookToken | quote }}
+  api-key: {{ .Values.llm.apiKey | quote }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: incident-service}
+---
+# Read-only access to pods of the application namespace (restart counts, OOMKilled, start times) - nothing else.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: incident-service-read-pods, namespace: {{ .Values.appNamespace }}}
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: incident-service-read-pods, namespace: {{ .Values.appNamespace }}}
+subjects: [{kind: ServiceAccount, name: incident-service, namespace: {{ .Release.Namespace }}}]
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: incident-service-read-pods}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: incident-service, labels: {app: incident-service}}
+spec:
+  selector: {app: incident-service}
+  ports: [{name: http, port: 8010, targetPort: http}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: incident-service, labels: {app: incident-service}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: incident-service}}
+  template:
+    metadata: {labels: {app: incident-service}}
+    spec:
+      serviceAccountName: incident-service
+      securityContext: {runAsNonRoot: true, runAsUser: 10001}
+      containers:
+        - name: incident-service
+          image: {{ .Values.image.registry }}traceforge/incident-service:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{name: http, containerPort: 8010}]
+          env:
+            - {name: PORT, value: "8010"}
+            - {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: {{ .Values.otlpEndpoint | quote }}}
+            - name: DATABASE_URL
+              valueFrom: {secretKeyRef: {name: postgres-credentials, key: incident-url}}   # created by demo-app (same namespace)
+            - {name: PROMETHEUS_URL, value: {{ .Values.prometheusUrl | quote }}}
+            - {name: TEMPO_URL, value: {{ .Values.tempoUrl | quote }}}
+            - {name: LOKI_URL, value: {{ .Values.lokiUrl | quote }}}
+            - {name: KUBE_ENABLED, value: "true"}
+            - {name: KUBE_NAMESPACE, value: {{ .Values.appNamespace | quote }}}
+            - {name: EVIDENCE_DELAY_S, value: {{ .Values.evidenceDelayS | quote }}}
+            - {name: LLM_PROVIDER, value: {{ .Values.llm.provider | quote }}}
+            - {name: LLM_MODEL, value: {{ .Values.llm.model | quote }}}
+            - {name: LLM_BASE_URL, value: {{ .Values.llm.baseUrl | quote }}}
+            - name: LLM_API_KEY
+              valueFrom: {secretKeyRef: {name: {{ .Values.llm.existingSecret | default "incident-service-secrets" }}, key: api-key}}
+            - name: WEBHOOK_TOKEN
+              valueFrom: {secretKeyRef: {name: incident-service-secrets, key: webhook-token}}
+          startupProbe: {httpGet: {path: /health, port: http}, periodSeconds: 3, failureThreshold: 30}
+          readinessProbe: {httpGet: {path: /ready, port: http}, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10}
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 384Mi}
