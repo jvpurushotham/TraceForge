@@ -1,0 +1,15 @@
+route:
+  receiver: traceforge-incident-service
+  group_by: ["cluster"]   # no such label -> all related alerts land in ONE group / ONE incident
+  group_wait: 10s
+  group_interval: 15s
+  repeat_interval: 10m
+
+receivers:
+  - name: traceforge-incident-service
+    webhook_configs:
+      - url: http://incident-service:8010/api/v1/webhooks/alertmanager
+        send_resolved: true
+        # To require a shared secret, set WEBHOOK_TOKEN on incident-service and add:
+        # http_config:
+        #   authorization: {type: Bearer, credentials: change-me}

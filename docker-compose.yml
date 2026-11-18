@@ -1,0 +1,77 @@
+# ============================================================================
+# PHASE 1 - the demo e-commerce microservices (Product, Inventory, Payment, Order)
+#           + PostgreSQL.  Runs on its own; no telemetry stack needed.
+#
+#   docker compose up --build -d                      # Phase 1 only
+#   docker compose -f docker-compose.yml -f docker-compose.phase2.yml up --build -d        # + observability
+#   docker compose -f docker-compose.yml -f docker-compose.phase2.yml -f docker-compose.phase3.yml up --build -d   # everything
+#
+# Fault injection is ENABLED here. Use this stack for local development / testing only.
+# ============================================================================
+x-app-env: &app-env
+  ENABLE_FAULT_INJECTION: "true"
+  BASE_LATENCY_MS: "20"
+  DEPLOY_ENV: local
+
+x-app-build: &app-build
+  context: .
+  dockerfile: services/Dockerfile
+
+services:
+  product-service:
+    build: {<<: *app-build, args: {SERVICE: product-service, PORT: "8001"}}
+    image: traceforge/product-service
+    environment: {<<: *app-env, PORT: "8001"}
+    ports: ["8001:8001"]
+    restart: unless-stopped
+
+  inventory-service:
+    build: {<<: *app-build, args: {SERVICE: inventory-service, PORT: "8002"}}
+    image: traceforge/inventory-service
+    environment: {<<: *app-env, PORT: "8002"}
+    ports: ["8002:8002"]
+    restart: unless-stopped
+
+  payment-service:
+    build: {<<: *app-build, args: {SERVICE: payment-service, PORT: "8003"}}
+    image: traceforge/payment-service
+    environment: {<<: *app-env, PORT: "8003"}
+    ports: ["8003:8003"]
+    restart: unless-stopped
+
+  order-service:
+    build: {<<: *app-build, args: {SERVICE: order-service, PORT: "8000"}}
+    image: traceforge/order-service
+    environment:
+      <<: *app-env
+      PORT: "8000"
+      PRODUCT_SERVICE_URL: http://product-service:8001
+      INVENTORY_SERVICE_URL: http://inventory-service:8002
+      PAYMENT_SERVICE_URL: http://payment-service:8003
+      DATABASE_URL: postgresql+psycopg2://traceforge:traceforge@postgres:5432/traceforge
+      HTTP_TIMEOUT_S: "5"
+    ports: ["8000:8000"]
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+      product-service: {condition: service_started}
+      inventory-service: {condition: service_started}
+      payment-service: {condition: service_started}
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: traceforge
+      POSTGRES_PASSWORD: traceforge
+      POSTGRES_DB: traceforge
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U traceforge"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:

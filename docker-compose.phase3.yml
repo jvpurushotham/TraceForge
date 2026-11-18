@@ -1,0 +1,37 @@
+# ============================================================================
+# PHASE 3 - TraceForge incident engine: Alertmanager webhook -> incident record ->
+#           evidence from Prometheus/Tempo/Loki -> ranked causes -> optional AI explanation.
+# Needs Phase 1 + Phase 2:
+#   docker compose -f docker-compose.yml -f docker-compose.phase2.yml -f docker-compose.phase3.yml up --build -d
+# Optional AI: copy .env.example to .env and set LLM_PROVIDER / LLM_API_KEY. Default = "none"
+# (deterministic template report; the rule engine works without any LLM).
+# ============================================================================
+services:
+  incident-service:
+    build: {context: ., dockerfile: services/Dockerfile, args: {SERVICE: incident-service, PORT: "8010"}}
+    image: traceforge/incident-service
+    environment:
+      PORT: "8010"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      DATABASE_URL: postgresql+psycopg2://traceforge:traceforge@postgres:5432/traceforge_incidents
+      PROMETHEUS_URL: http://prometheus:9090
+      TEMPO_URL: http://tempo:3200
+      LOKI_URL: http://loki:3100
+      KNOWN_SERVICES: order-service,product-service,inventory-service,payment-service
+      EVIDENCE_DELAY_S: "20"
+      LLM_PROVIDER: ${LLM_PROVIDER:-none}          # none | anthropic | openai
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}              # e.g. http://host.docker.internal:11434/v1 for Ollama
+    ports: ["8010:8010"]
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+      otel-collector: {condition: service_started}
+
+  prometheus:
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  alertmanager:
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro

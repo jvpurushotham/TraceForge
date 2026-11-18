@@ -1,0 +1,10 @@
+# Phase-2 variant: alerts are only shown in the Alertmanager UI (http://localhost:9093).
+# Phase 3 swaps in alertmanager.yml, which forwards them to the TraceForge incident service.
+route:
+  receiver: ui-only
+  group_by: ["cluster"]
+  group_wait: 10s
+  group_interval: 15s
+  repeat_interval: 10m
+receivers:
+  - name: ui-only
