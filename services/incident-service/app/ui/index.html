@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TraceForge incidents</title>
+<style>
+:root{--bg:#0f1419;--panel:#171d25;--line:#2a323d;--fg:#e6edf3;--mut:#8b98a5;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--acc:#58a6ff}
+@media (prefers-color-scheme:light){:root{--bg:#f6f8fa;--panel:#fff;--line:#d0d7de;--fg:#1f2328;--mut:#59636e;--acc:#0969da}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,Segoe UI,sans-serif}
+header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+h1{font-size:18px;margin:0}header small{color:var(--mut)}
+main{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:16px;padding:16px 20px}
+@media(max-width:800px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+.inc{padding:8px;border-radius:6px;cursor:pointer;border:1px solid transparent}.inc:hover,.inc.sel{border-color:var(--acc)}
+.tag{display:inline-block;padding:0 7px;border-radius:10px;font-size:12px;border:1px solid var(--line);margin-right:4px}
+.critical,.high{color:var(--bad)}.medium{color:var(--warn)}.low,.resolved{color:var(--ok)}
+h2{font-size:15px;margin:14px 0 6px}.mut{color:var(--mut)}code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+button{background:var(--acc);color:#fff;border:0;border-radius:6px;padding:6px 12px;cursor:pointer}
+.note{border-left:3px solid var(--warn);padding:4px 10px;margin:8px 0;background:rgba(210,153,34,.08)}
+</style></head><body>
+<header><h1>TraceForge</h1><small>Incidents are hypotheses to verify, not proven root causes. All findings link to telemetry references.</small>
+<button id="reload" style="margin-left:auto">Refresh</button></header>
+<main><section class="panel"><div id="list">Loading...</div></section><section class="panel" id="detail"><span class="mut">Select an incident.</span></section></main>
+<script>
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const j=async(u,o)=>{const r=await fetch(u,o);if(!r.ok)throw new Error(u+" -> "+r.status);return r.json()};
+let sel=null;
+async function loadList(){
+  try{const xs=await j("/api/v1/incidents?limit=50");
+    $("#list").innerHTML=xs.length?xs.map(i=>`<div class="inc ${i.incident_id===sel?"sel":""}" data-id="${esc(i.incident_id)}">
+      <b>${esc(i.incident_id)}</b> <span class="tag ${esc(i.severity)}">${esc(i.severity)}</span><span class="tag ${i.status==="resolved"?"resolved":""}">${esc(i.status)}</span><br>
+      <span>${esc(i.title)}</span><br><span class="mut">${esc(i.affected_service)} - ${esc(i.first_observed)}</span></div>`).join(""):'<span class="mut">No incidents yet. Inject a fault and wait for an alert.</span>';
+    document.querySelectorAll(".inc").forEach(e=>e.onclick=()=>show(e.dataset.id));
+  }catch(e){$("#list").textContent="Error: "+e.message}
+}
+const list=(a,f)=>a&&a.length?"<ul>"+a.map(f).join("")+"</ul>":'<span class="mut">none</span>';
+async function show(id){
+  sel=id;loadList();
+  const [inc,tl,ev]=await Promise.all([j("/api/v1/incidents/"+encodeURIComponent(id)),j("/api/v1/incidents/"+encodeURIComponent(id)+"/timeline"),j("/api/v1/incidents/"+encodeURIComponent(id)+"/evidence")]);
+  const d=inc.latest_diagnosis,rep=d&&d.report&&d.report.report;
+  let h=`<h2 style="margin-top:0">${esc(inc.incident_id)} - ${esc(inc.title)}</h2>
+   <div><span class="tag ${esc(inc.severity)}">${esc(inc.severity)}</span><span class="tag">${esc(inc.status)}</span><span class="tag">${esc(inc.affected_service)}</span>
+   ${inc.trace_id?`<span class="tag">trace <code>${esc(inc.trace_id)}</code></span>`:""}</div>
+   <p class="mut">Symptom: ${esc(inc.symptom)}</p>
+   <button id="rediag">Re-run diagnosis</button> <button id="rediag-rules">Rules only</button>`;
+  if(!d)h+='<p class="note">No diagnosis yet (it runs ~20 s after the alert so traces and logs can arrive).</p>';
+  else{
+    h+=`<h2>Diagnosis <span class="tag">${esc(d.status)}</span><span class="tag">${esc(d.engine_version)}</span></h2><p>${esc(d.summary)}</p>
+    <div class="note">Requires human review. Score = ${esc(d.score_semantics)}</div>
+    <h2>Ranked hypotheses</h2>`+(d.suspected_causes.length?`<table><tr><th>Service</th><th>Cause</th><th>Score</th><th>Strength</th><th>Evidence</th></tr>`+
+      d.suspected_causes.map(c=>`<tr><td>${esc(c.service)}</td><td>${esc(c.cause)}<br><span class="mut">${esc(c.hypothesis)}</span></td><td>${esc(c.confidence)}</td><td>${esc(c.evidence_strength)}</td><td>${c.evidence_refs.map(r=>`<code>${esc(r)}</code>`).join("<br>")}</td></tr>`).join("")+"</table>":'<span class="mut">no candidate cause</span>');
+    if(rep){h+=`<h2>Explanation (${esc(d.report.source)}${d.report.model?": "+esc(d.report.model):""})</h2><p>${esc(rep.summary)}</p>
+      <h2>Suggested checks</h2>${list(rep.suggested_checks,x=>`<li>${esc(x)}</li>`)}
+      <h2>Recommended remediation (nothing is executed automatically)</h2>${list(rep.remediation_steps,x=>`<li>${esc(x)}</li>`)}
+      <h2>Alternatives</h2>${list(rep.alternative_explanations,x=>`<li><b>${esc(x.cause)}</b>: ${esc(x.why)}</li>`)}
+      <h2>Uncertainty</h2><p>${esc(rep.uncertainty)}</p>`;}
+    h+=`<h2>Missing evidence</h2>${list(d.missing_evidence,x=>`<li>${esc(x)}</li>`)}`;
+  }
+  h+=`<h2>Evidence references</h2>`+(ev.references.length?`<table>`+ev.references.map(r=>`<tr><td><code>${esc(r.id)}</code></td><td>${esc(r.source_type)}</td><td>${esc(r.finding)}<br><span class="mut">${esc(r.resource_reference)}</span></td></tr>`).join("")+"</table>":'<span class="mut">none</span>');
+  h+=`<h2>Timeline</h2><table>`+tl.map(e=>`<tr><td class="mut">${esc(e.timestamp)}</td><td>${esc(e.event_type)}</td><td>${esc(e.description)}</td></tr>`).join("")+"</table>";
+  $("#detail").innerHTML=h;
+  $("#rediag").onclick=async()=>{$("#rediag").textContent="Working...";await j(`/api/v1/incidents/${encodeURIComponent(id)}/diagnose`,{method:"POST"});show(id)};
+  $("#rediag-rules").onclick=async()=>{await j(`/api/v1/incidents/${encodeURIComponent(id)}/diagnose?use_ai=false`,{method:"POST"});show(id)};
+}
+$("#reload").onclick=()=>{loadList();if(sel)show(sel)};loadList();setInterval(loadList,10000);
+</script></body></html>
