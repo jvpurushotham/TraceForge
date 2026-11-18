@@ -1,0 +1,152 @@
+{
+ "name": "01_slow_payment",
+ "label": {
+  "service": "payment-service",
+  "cause": [
+   "slow_downstream_dependency"
+  ]
+ },
+ "package": {
+  "incident_id": "EVAL-01",
+  "symptom": "Elevated order latency",
+  "affected_service": "order-service",
+  "severity": "high",
+  "window_start": "2026-11-08T10:00:00Z",
+  "window_end": "2026-11-08T10:03:00Z",
+  "metrics": {
+   "order-service": {
+    "service": "order-service",
+    "p95_ms": 4200.0,
+    "baseline_p95_ms": 180.0,
+    "error_rate_pct": 2.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:order-service"
+   },
+   "product-service": {
+    "service": "product-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 0.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:product-service"
+   },
+   "inventory-service": {
+    "service": "inventory-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 0.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:inventory-service"
+   },
+   "payment-service": {
+    "service": "payment-service",
+    "p95_ms": 3600.0,
+    "baseline_p95_ms": 120.0,
+    "error_rate_pct": 0.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:payment-service"
+   }
+  },
+  "traces": [
+   {
+    "trace_id": "00000000000000000000000000000001",
+    "root_duration_ms": 4100.0,
+    "root_service": "order-service",
+    "self_time_ms": {
+     "order-service": 150.0,
+     "payment-service": 3700.0,
+     "product-service": 30.0,
+     "inventory-service": 25.0
+    },
+    "db_self_time_ms": {},
+    "error_spans": [],
+    "ref": "trace:00000000"
+   },
+   {
+    "trace_id": "00000000000000000000000000000002",
+    "root_duration_ms": 4300.0,
+    "root_service": "order-service",
+    "self_time_ms": {
+     "order-service": 160.0,
+     "payment-service": 3900.0,
+     "product-service": 30.0,
+     "inventory-service": 25.0
+    },
+    "db_self_time_ms": {},
+    "error_spans": [],
+    "ref": "trace:00000000"
+   }
+  ],
+  "logs": [
+   {
+    "service": "payment-service",
+    "message": "payment.provider.call responded slowly",
+    "level": "WARNING",
+    "error_type": "",
+    "dependency": "",
+    "count": 40,
+    "trace_ids": [],
+    "ref": "log:payment-service:0"
+   }
+  ],
+  "kubernetes": [],
+  "deployments": [],
+  "missing": [],
+  "refs": [
+   {
+    "id": "metric:order-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "order-service p95 4200"
+   },
+   {
+    "id": "metric:product-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "product-service p95 120.0"
+   },
+   {
+    "id": "metric:inventory-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "inventory-service p95 120.0"
+   },
+   {
+    "id": "metric:payment-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "payment-service p95 3600"
+   },
+   {
+    "id": "trace:00000000",
+    "source_type": "trace",
+    "resource_reference": "tempo:00000000000000000000000000000001",
+    "finding": "trace 00000000000000000000000000000001"
+   },
+   {
+    "id": "trace:00000000",
+    "source_type": "trace",
+    "resource_reference": "tempo:00000000000000000000000000000002",
+    "finding": "trace 00000000000000000000000000000002"
+   },
+   {
+    "id": "log:payment-service:0",
+    "source_type": "log",
+    "resource_reference": "loki",
+    "finding": "payment.provider.call responded slowly"
+   }
+  ]
+ }
+}

@@ -1,0 +1,166 @@
+{
+ "name": "04_db_pool_exhausted",
+ "label": {
+  "service": "inventory-service",
+  "cause": [
+   "database_connection_pressure",
+   "database_latency"
+  ]
+ },
+ "package": {
+  "incident_id": "EVAL-04",
+  "symptom": "Order failures",
+  "affected_service": "order-service",
+  "severity": "high",
+  "window_start": "2026-11-08T10:00:00Z",
+  "window_end": "2026-11-08T10:03:00Z",
+  "metrics": {
+   "order-service": {
+    "service": "order-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 80.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:order-service"
+   },
+   "product-service": {
+    "service": "product-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 0.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:product-service"
+   },
+   "inventory-service": {
+    "service": "inventory-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 100.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:inventory-service"
+   },
+   "payment-service": {
+    "service": "payment-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 0.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:payment-service"
+   }
+  },
+  "traces": [
+   {
+    "trace_id": "00000000000000000000000000000006",
+    "root_duration_ms": 80.0,
+    "root_service": "order-service",
+    "self_time_ms": {
+     "order-service": 40.0,
+     "inventory-service": 8.0
+    },
+    "db_self_time_ms": {
+     "inventory-service": 20.0
+    },
+    "error_spans": [
+     {
+      "service": "inventory-service",
+      "name": "db.query",
+      "duration_ms": 20.0,
+      "message": "database connection pool exhausted",
+      "peer": null,
+      "is_db": true
+     },
+     {
+      "service": "inventory-service",
+      "name": "POST /inventory/reserve",
+      "duration_ms": 30.0,
+      "message": "503",
+      "peer": null,
+      "is_db": false
+     }
+    ],
+    "ref": "trace:00000000"
+   }
+  ],
+  "logs": [
+   {
+    "service": "inventory-service",
+    "message": "database connection pool exhausted",
+    "level": "ERROR",
+    "error_type": "OperationalError",
+    "dependency": "",
+    "count": 50,
+    "trace_ids": [],
+    "ref": "log:inventory-service:0"
+   },
+   {
+    "service": "order-service",
+    "message": "Inventory service returned 503",
+    "level": "ERROR",
+    "error_type": "HTTPStatusError",
+    "dependency": "inventory-service",
+    "count": 50,
+    "trace_ids": [],
+    "ref": "log:order-service:1"
+   }
+  ],
+  "kubernetes": [],
+  "deployments": [],
+  "missing": [],
+  "refs": [
+   {
+    "id": "metric:order-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "order-service p95 120.0"
+   },
+   {
+    "id": "metric:product-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "product-service p95 120.0"
+   },
+   {
+    "id": "metric:inventory-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "inventory-service p95 120.0"
+   },
+   {
+    "id": "metric:payment-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "payment-service p95 120.0"
+   },
+   {
+    "id": "trace:00000000",
+    "source_type": "trace",
+    "resource_reference": "tempo:00000000000000000000000000000006",
+    "finding": "trace 00000000000000000000000000000006"
+   },
+   {
+    "id": "log:inventory-service:0",
+    "source_type": "log",
+    "resource_reference": "loki",
+    "finding": "database connection pool exhausted"
+   },
+   {
+    "id": "log:order-service:1",
+    "source_type": "log",
+    "resource_reference": "loki",
+    "finding": "Inventory service returned 503"
+   }
+  ]
+ }
+}

@@ -1,0 +1,96 @@
+{
+ "name": "11_metrics_only_latency",
+ "label": {
+  "service": null,
+  "cause": [],
+  "expect_insufficient": true
+ },
+ "package": {
+  "incident_id": "EVAL-11",
+  "symptom": "Elevated order latency",
+  "affected_service": "order-service",
+  "severity": "high",
+  "window_start": "2026-11-08T10:00:00Z",
+  "window_end": "2026-11-08T10:03:00Z",
+  "metrics": {
+   "order-service": {
+    "service": "order-service",
+    "p95_ms": 2500.0,
+    "baseline_p95_ms": 200.0,
+    "error_rate_pct": 0.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:order-service"
+   },
+   "product-service": {
+    "service": "product-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 0.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:product-service"
+   },
+   "inventory-service": {
+    "service": "inventory-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 0.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:inventory-service"
+   },
+   "payment-service": {
+    "service": "payment-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 0.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:payment-service"
+   }
+  },
+  "traces": [],
+  "logs": [],
+  "kubernetes": [],
+  "deployments": [],
+  "missing": [
+   "traces: Tempo search failed",
+   "logs: Loki query failed"
+  ],
+  "refs": [
+   {
+    "id": "metric:order-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "order-service p95 2500"
+   },
+   {
+    "id": "metric:product-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "product-service p95 120.0"
+   },
+   {
+    "id": "metric:inventory-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "inventory-service p95 120.0"
+   },
+   {
+    "id": "metric:payment-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "payment-service p95 120.0"
+   }
+  ]
+ }
+}

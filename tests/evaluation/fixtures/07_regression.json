@@ -1,0 +1,168 @@
+{
+ "name": "07_regression",
+ "label": {
+  "service": "payment-service",
+  "cause": [
+   "deployment_regression"
+  ]
+ },
+ "package": {
+  "incident_id": "EVAL-07",
+  "symptom": "Elevated error rate",
+  "affected_service": "order-service",
+  "severity": "high",
+  "window_start": "2026-11-08T10:00:00Z",
+  "window_end": "2026-11-08T10:03:00Z",
+  "metrics": {
+   "order-service": {
+    "service": "order-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 35.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:order-service"
+   },
+   "product-service": {
+    "service": "product-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 0.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:product-service"
+   },
+   "inventory-service": {
+    "service": "inventory-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 0.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:inventory-service"
+   },
+   "payment-service": {
+    "service": "payment-service",
+    "p95_ms": 120.0,
+    "baseline_p95_ms": 110.0,
+    "error_rate_pct": 40.0,
+    "rps": 3.0,
+    "up": true,
+    "restarts": 0,
+    "memory_mb": 95.0,
+    "ref": "metric:payment-service"
+   }
+  },
+  "traces": [
+   {
+    "trace_id": "00000000000000000000000000000007",
+    "root_duration_ms": 120.0,
+    "root_service": "order-service",
+    "self_time_ms": {
+     "order-service": 50.0,
+     "payment-service": 20.0
+    },
+    "db_self_time_ms": {},
+    "error_spans": [
+     {
+      "service": "payment-service",
+      "name": "payment.provider.call",
+      "duration_ms": 20.0,
+      "message": "injected fault in payment.provider.call",
+      "peer": null,
+      "is_db": false
+     }
+    ],
+    "ref": "trace:00000000"
+   }
+  ],
+  "logs": [
+   {
+    "service": "payment-service",
+    "message": "payment.provider.call failed",
+    "level": "ERROR",
+    "error_type": "InjectedError",
+    "dependency": "",
+    "count": 70,
+    "trace_ids": [],
+    "ref": "log:payment-service:0"
+   },
+   {
+    "service": "order-service",
+    "message": "Payment service returned 500",
+    "level": "ERROR",
+    "error_type": "HTTPStatusError",
+    "dependency": "payment-service",
+    "count": 70,
+    "trace_ids": [],
+    "ref": "log:order-service:1"
+   }
+  ],
+  "kubernetes": [],
+  "deployments": [
+   {
+    "service": "payment-service",
+    "version": "v2.0.0-bad",
+    "timestamp": "2026-11-08T09:58:00Z",
+    "ref": "deploy:payment-service:v2.0.0-bad"
+   }
+  ],
+  "missing": [],
+  "refs": [
+   {
+    "id": "metric:order-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "order-service p95 120.0"
+   },
+   {
+    "id": "metric:product-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "product-service p95 120.0"
+   },
+   {
+    "id": "metric:inventory-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "inventory-service p95 120.0"
+   },
+   {
+    "id": "metric:payment-service",
+    "source_type": "metric",
+    "resource_reference": "prometheus",
+    "finding": "payment-service p95 120.0"
+   },
+   {
+    "id": "trace:00000000",
+    "source_type": "trace",
+    "resource_reference": "tempo:00000000000000000000000000000007",
+    "finding": "trace 00000000000000000000000000000007"
+   },
+   {
+    "id": "log:payment-service:0",
+    "source_type": "log",
+    "resource_reference": "loki",
+    "finding": "payment.provider.call failed"
+   },
+   {
+    "id": "log:order-service:1",
+    "source_type": "log",
+    "resource_reference": "loki",
+    "finding": "Payment service returned 500"
+   },
+   {
+    "id": "deploy:payment-service:v2.0.0-bad",
+    "source_type": "deployment",
+    "resource_reference": "events",
+    "finding": "v2.0.0-bad"
+   }
+  ]
+ }
+}

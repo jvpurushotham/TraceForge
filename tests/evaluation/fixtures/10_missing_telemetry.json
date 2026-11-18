@@ -1,0 +1,27 @@
+{
+ "name": "10_missing_telemetry",
+ "label": {
+  "service": null,
+  "cause": [],
+  "expect_insufficient": true
+ },
+ "package": {
+  "incident_id": "EVAL-10",
+  "symptom": "Elevated order latency",
+  "affected_service": "order-service",
+  "severity": "high",
+  "window_start": "2026-11-08T10:00:00Z",
+  "window_end": "2026-11-08T10:03:00Z",
+  "metrics": {},
+  "traces": [],
+  "logs": [],
+  "kubernetes": [],
+  "deployments": [],
+  "missing": [
+   "metrics: Prometheus query failed",
+   "traces: Tempo search failed",
+   "logs: Loki query failed"
+  ],
+  "refs": []
+ }
+}
