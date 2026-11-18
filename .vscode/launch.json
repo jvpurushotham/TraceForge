@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {"name": "Run all services locally (no Docker)", "type": "debugpy", "request": "launch",
+     "program": "${workspaceFolder}/scripts/run_local.py", "args": ["--with-incident"], "console": "integratedTerminal"},
+    {"name": "Debug order-service", "type": "debugpy", "request": "launch", "module": "uvicorn",
+     "args": ["app.main:app", "--app-dir", "services/order-service", "--port", "8000"],
+     "env": {"PYTHONPATH": "${workspaceFolder}/services", "ENABLE_FAULT_INJECTION": "true",
+             "PRODUCT_SERVICE_URL": "http://127.0.0.1:8001", "INVENTORY_SERVICE_URL": "http://127.0.0.1:8002",
+             "PAYMENT_SERVICE_URL": "http://127.0.0.1:8003"}},
+    {"name": "Debug incident-service", "type": "debugpy", "request": "launch", "module": "uvicorn",
+     "args": ["app.main:app", "--app-dir", "services/incident-service", "--port", "8010"],
+     "env": {"PYTHONPATH": "${workspaceFolder}/services", "PROMETHEUS_URL": "http://localhost:9090",
+             "TEMPO_URL": "http://localhost:3200", "LOKI_URL": "http://localhost:3100"}},
+    {"name": "Offline evaluation", "type": "debugpy", "request": "launch",
+     "program": "${workspaceFolder}/tests/evaluation/evaluate.py", "console": "integratedTerminal"}
+  ]
+}

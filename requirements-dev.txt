@@ -1,0 +1,3 @@
+# One command for local development / VS Code:  pip install -r requirements-dev.txt
+-r services/requirements-dev.txt
+-r services/incident-service/requirements.txt

@@ -1,0 +1,41 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - run: python tests/evaluation/evaluate.py
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f docker-compose.yml -f docker-compose.phase2.yml -f docker-compose.phase3.yml config -q
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: helm lint helm/demo-app helm/traceforge
+      - run: helm template demo helm/demo-app --set serviceMonitor.enabled=false >/dev/null
+      - run: helm template tf helm/traceforge >/dev/null
+  images:
+    runs-on: ubuntu-latest
+    needs: [test]
+    strategy:
+      matrix:
+        service: [product-service, inventory-service, payment-service, order-service, incident-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/Dockerfile
+          build-args: SERVICE=${{ matrix.service }}
+          push: false
+          tags: traceforge/${{ matrix.service }}:ci
